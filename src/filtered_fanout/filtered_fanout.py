@@ -229,3 +229,10 @@ def _body_filter(
         )
         for key, values in filter.items()
     }
+
+
+def _validate_receive_count(max_receive_count: int) -> None:
+    if isinstance(max_receive_count, bool) or not isinstance(max_receive_count, int):
+        raise TypeError("max_receive_count must be an integer")
+    if max_receive_count < 1:
+        raise ValueError("max_receive_count must be at least 1")
