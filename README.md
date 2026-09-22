@@ -81,3 +81,7 @@ For each consumer:
 - raw message delivery, so the worker sees your JSON and not the SNS envelope
 - the queue policy CDK adds, which allows `sqs:SendMessage` only from this topic
 - an alarm when that dead-letter queue has any visible messages
+
+The alarm has no action until you add one. `consumer.alarm.add_alarm_action(...)` is the hook. Pass `visibility_timeout` to `add_consumer` when the worker runs longer than the 30 second SQS default, or the message becomes visible again while that worker is still running.
+
+The dead-letter queue here is the SQS redrive queue (the worker received the message and failed until `maxReceiveCount`); an SNS subscription dead-letter queue, which CDK can also set, is the other path, for when SNS could not hand the message to the queue at all, and this construct does not add one.
