@@ -225,3 +225,16 @@ def test_worker_rejects_a_function_slower_than_the_visibility_timeout():
     )
     with pytest.raises(ValueError, match="visibility timeout"):
         lost.add_worker(fn)
+
+
+def test_visibility_timeout_is_set_on_the_consumer_queue():
+    app = cdk.App()
+    stack = cdk.Stack(app, "Test")
+    fanout = FilteredFanout(stack, "IngestComplete")
+    fanout.add_consumer(
+        "lost-production",
+        filter={"signal_type": ["Gas Today"]},
+        visibility_timeout=Duration.seconds(120),
+    )
+    template = assertions.Template.from_stack(stack)
+    template.has_resource_properties("AWS::SQS::Queue", {"VisibilityTimeout": 120})
