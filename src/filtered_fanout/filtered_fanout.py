@@ -14,3 +14,7 @@ from aws_cdk import aws_sns as sns
 from aws_cdk import aws_sns_subscriptions as subscriptions
 from aws_cdk import aws_sqs as sqs
 from constructs import Construct
+
+# A message the worker keeps failing is dead-lettered after this many receives.
+DEFAULT_MAX_RECEIVE_COUNT = 5
+DLQ_RETENTION = Duration.days(14)
