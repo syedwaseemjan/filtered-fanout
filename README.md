@@ -16,3 +16,28 @@ SNS topic
 SNS is only the fan-out. It does not hold a backlog. SQS is where a slow or failing worker piles up, retries, and eventually dead-letters, while the other consumers keep moving.
 
 A new consumer is another `add_consumer` call. The publisher stays the same.
+
+## Usage
+
+```python
+from aws_cdk import Stack
+from constructs import Construct
+
+from filtered_fanout import FilteredFanout
+
+
+class IngestStack(Stack):
+    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        fanout = FilteredFanout(self, "IngestComplete")
+        lost = fanout.add_consumer(
+            "lost-production",
+            filter={"signal_type": ["Gas Today"]},
+        )
+        setpoints = fanout.add_consumer(
+            "setpoints",
+            filter={"signal_type": ["Tubing Pressure"]},
+        )
+        lost.add_worker(lost_production_fn)  # optional
+```
