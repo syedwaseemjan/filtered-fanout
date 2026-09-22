@@ -66,3 +66,25 @@ class FilteredFanout(Construct):
             )
         )
         self.consumers: list[FanoutConsumer] = []
+
+    def add_consumer(
+        self,
+        id: str,
+        *,
+        filter: Mapping[str, Sequence[str]],
+        filter_scope: FilterScope = FilterScope.MESSAGE_ATTRIBUTES,
+        max_receive_count: int | None = None,
+        visibility_timeout: Duration | None = None,
+    ) -> FanoutConsumer:
+        """Subscribe a new queue. The publisher does not change.
+
+        ``filter`` is a map of attribute name (or, for body scope, top-level
+        JSON field) to the values that should be delivered. SNS ORs values
+        in one list and ANDs keys. A ``String.Array`` attribute matches when
+        its entries intersect the list.
+
+        ``max_receive_count`` overrides the fan-out default for this consumer.
+        ``visibility_timeout`` overrides the 30 second SQS default. Set it
+        above the worker's runtime so a message is not delivered again while
+        that worker is still running.
+        """
