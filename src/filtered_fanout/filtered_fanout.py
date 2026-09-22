@@ -119,3 +119,24 @@ class FanoutConsumer(Construct):
 
     ``queue`` is what the caller polls. ``add_worker`` is optional.
     """
+
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        *,
+        topic: sns.ITopic,
+        filter: Mapping[str, Sequence[str]],
+        filter_scope: FilterScope,
+        max_receive_count: int,
+        visibility_timeout: Duration | None,
+    ) -> None:
+        super().__init__(scope, id)
+        # SQS default. Stored even when the template omits it, so add_worker
+        # can tell a slow function from a queue that will redeliver too soon.
+        self.visibility_timeout = visibility_timeout or Duration.seconds(30)
+        self.dead_letter_queue = sqs.Queue(
+            self,
+            "DeadLetterQueue",
+            retention_period=DLQ_RETENTION,
+        )
