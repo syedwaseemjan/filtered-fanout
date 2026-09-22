@@ -112,3 +112,10 @@ class FilteredFanout(Construct):
         )
         self.consumers.append(consumer)
         return consumer
+
+
+class FanoutConsumer(Construct):
+    """A queue, its dead-letter queue, and the subscription that feeds it.
+
+    ``queue`` is what the caller polls. ``add_worker`` is optional.
+    """
