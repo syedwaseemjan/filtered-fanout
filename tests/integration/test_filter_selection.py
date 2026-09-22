@@ -170,3 +170,21 @@ def _collect(sqs, queues: dict[str, str], timeout: float = 30) -> dict[str, set[
             _drain_once(sqs, queues, found)
             break
     return found
+
+
+def _drain_once(sqs, queues: dict[str, str], found: dict[str, set[str]]) -> None:
+    for name, url in queues.items():
+        response = sqs.receive_message(
+            QueueUrl=url,
+            MaxNumberOfMessages=10,
+            WaitTimeSeconds=1,
+        )
+        for message in response.get("Messages", []):
+            assert "TopicArn" not in message["Body"]
+            body = json.loads(message["Body"])
+            assert "id" in body, message["Body"]
+            found[name].add(body["id"])
+            sqs.delete_message(
+                QueueUrl=url,
+                ReceiptHandle=message["ReceiptHandle"],
+            )
