@@ -157,3 +157,28 @@ def test_body_filter_sets_message_body_scope():
             "RawMessageDelivery": True,
         },
     )
+
+
+def test_worker_reports_batch_item_failures():
+    stack, _, lost, _ = _stack()
+    fn = lambda_.Function(
+        stack,
+        "LostProduction",
+        runtime=lambda_.Runtime.PYTHON_3_12,
+        handler="index.handler",
+        code=lambda_.Code.from_inline(
+            "def handler(event, context):\n    return {'batchItemFailures': []}\n"
+        ),
+    )
+    lost.add_worker(fn)
+    template = assertions.Template.from_stack(stack)
+
+    consumers, dead_letters = _queues(template)
+    mappings = template.find_resources("AWS::Lambda::EventSourceMapping")
+    assert len(mappings) == 1
+    props = next(iter(mappings.values()))["Properties"]
+    assert props["FunctionResponseTypes"] == ["ReportBatchItemFailures"]
+    assert props["BatchSize"] == 10
+    source = props["EventSourceArn"]["Fn::GetAtt"][0]
+    assert source in consumers
+    assert source not in dead_letters
