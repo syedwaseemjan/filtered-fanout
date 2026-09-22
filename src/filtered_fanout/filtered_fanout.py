@@ -219,3 +219,13 @@ def _attribute_filter(
         for key, values in filter.items()
     }
 
+
+def _body_filter(
+    filter: Mapping[str, Sequence[str]],
+) -> dict[str, sns.FilterOrPolicy]:
+    return {
+        key: sns.FilterOrPolicy.filter(
+            sns.SubscriptionFilter.string_filter(allowlist=list(values))
+        )
+        for key, values in filter.items()
+    }
