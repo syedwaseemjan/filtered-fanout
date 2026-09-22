@@ -140,3 +140,15 @@ class FanoutConsumer(Construct):
             "DeadLetterQueue",
             retention_period=DLQ_RETENTION,
         )
+        queue_kwargs = {}
+        if visibility_timeout is not None:
+            queue_kwargs["visibility_timeout"] = visibility_timeout
+        self.queue = sqs.Queue(
+            self,
+            "Queue",
+            dead_letter_queue=sqs.DeadLetterQueue(
+                max_receive_count=max_receive_count,
+                queue=self.dead_letter_queue,
+            ),
+            **queue_kwargs,
+        )
