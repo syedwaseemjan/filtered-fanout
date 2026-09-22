@@ -12,3 +12,7 @@ SNS topic
   ├─ filter: pressure        → queue → worker → DLQ
   └─ filter: whatever is next → queue → worker → DLQ
 ```
+
+SNS is only the fan-out. It does not hold a backlog. SQS is where a slow or failing worker piles up, retries, and eventually dead-letters, while the other consumers keep moving.
+
+A new consumer is another `add_consumer` call. The publisher stays the same.
