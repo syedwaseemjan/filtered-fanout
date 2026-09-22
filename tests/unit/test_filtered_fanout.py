@@ -201,3 +201,13 @@ def test_max_receive_count_can_be_overridden_per_consumer():
         if "RedrivePolicy" in resource.get("Properties", {})
     )
     assert counts == [3, 8]
+
+
+def test_rejects_an_empty_or_shapeless_filter():
+    app = cdk.App()
+    stack = cdk.Stack(app, "Test")
+    fanout = FilteredFanout(stack, "IngestComplete")
+    with pytest.raises(ValueError):
+        fanout.add_consumer("missing", filter={})
+    with pytest.raises(ValueError):
+        fanout.add_consumer("bare", filter={"signal_type": "Gas Today"})
