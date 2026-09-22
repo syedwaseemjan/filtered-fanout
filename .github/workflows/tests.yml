@@ -32,3 +32,14 @@ jobs:
           --health-timeout 5s
           --health-retries 20
           --health-start-period 10s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -e ".[dev,integration]"
+      - name: Filter selection
+        env:
+          LOCALSTACK_URL: http://localhost:4566
+        run: pytest -m integration
