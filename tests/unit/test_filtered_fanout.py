@@ -211,3 +211,17 @@ def test_rejects_an_empty_or_shapeless_filter():
         fanout.add_consumer("missing", filter={})
     with pytest.raises(ValueError):
         fanout.add_consumer("bare", filter={"signal_type": "Gas Today"})
+
+
+def test_worker_rejects_a_function_slower_than_the_visibility_timeout():
+    stack, _, lost, _ = _stack()
+    fn = lambda_.Function(
+        stack,
+        "Slow",
+        runtime=lambda_.Runtime.PYTHON_3_12,
+        handler="index.handler",
+        timeout=Duration.seconds(60),
+        code=lambda_.Code.from_inline("def handler(event, context): return {}"),
+    )
+    with pytest.raises(ValueError, match="visibility timeout"):
+        lost.add_worker(fn)
