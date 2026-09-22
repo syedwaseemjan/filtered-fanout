@@ -5,3 +5,6 @@ build-backend = "hatchling.build"
 [project]
 name = "filtered-fanout"
 version = "0.1.0"
+description = "One SNS topic, many filtered SQS consumers, each with its own dead-letter queue."
+readme = "README.md"
+requires-python = ">=3.11"
