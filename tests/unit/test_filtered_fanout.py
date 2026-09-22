@@ -71,3 +71,28 @@ def test_two_consumers_fan_out_to_their_own_queues():
     assert subscribed == set(consumers)
     assert {"signal_type": ["Gas Today"]} in filters
     assert {"signal_type": ["Tubing Pressure"]} in filters
+
+
+def test_topic_policy_allows_publish_only_from_this_account():
+    stack, _, _, _ = _stack()
+    template = assertions.Template.from_stack(stack)
+    template.resource_count_is("AWS::SNS::TopicPolicy", 1)
+
+    policies = template.find_resources("AWS::SNS::TopicPolicy")
+    statements = next(iter(policies.values()))["Properties"]["PolicyDocument"]["Statement"]
+    assert len(statements) == 1
+    statement = statements[0]
+    assert statement["Effect"] == "Allow"
+    assert statement["Action"] == "sns:Publish"
+    assert statement["Principal"]["AWS"] == {
+        "Fn::Join": [
+            "",
+            [
+                "arn:",
+                {"Ref": "AWS::Partition"},
+                ":iam::",
+                {"Ref": "AWS::AccountId"},
+                ":root",
+            ],
+        ]
+    }
