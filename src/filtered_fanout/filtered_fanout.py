@@ -56,3 +56,13 @@ class FilteredFanout(Construct):
         _validate_receive_count(max_receive_count)
         self.max_receive_count = max_receive_count
 
+        self.topic = sns.Topic(self, "Topic")
+        self.topic.add_to_resource_policy(
+            iam.PolicyStatement(
+                sid="AllowPublishFromThisAccount",
+                actions=["sns:Publish"],
+                principals=[iam.AccountRootPrincipal()],
+                resources=[self.topic.topic_arn],
+            )
+        )
+        self.consumers: list[FanoutConsumer] = []
