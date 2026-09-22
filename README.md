@@ -98,3 +98,17 @@ def handler(event, context):
             failures.append({"itemIdentifier": record["messageId"]})
     return {"batchItemFailures": failures}
 ```
+
+## Filtering on the body
+
+Attributes are the default. Filtering on the body works when the subscription sets the filter scope to `MessageBody`. It is the version that is easier to get wrong when the JSON shape shifts. The same map is matched against top-level JSON fields.
+
+```python
+from filtered_fanout import FilterScope
+
+fanout.add_consumer(
+    "lost-production",
+    filter={"signal_types": ["Gas Today"]},
+    filter_scope=FilterScope.MESSAGE_BODY,
+)
+```
