@@ -116,3 +116,27 @@ def _allow_topic(sqs, queue_url: str, queue_arn: str, topic_arn: str) -> None:
             )
         },
     )
+
+
+def _subscribe(sns, topic_arn: str, queue_arn: str, allowed: list[str]) -> None:
+    arn = sns.subscribe(
+        TopicArn=topic_arn,
+        Protocol="sqs",
+        Endpoint=queue_arn,
+        ReturnSubscriptionArn=True,
+    )["SubscriptionArn"]
+    sns.set_subscription_attributes(
+        SubscriptionArn=arn,
+        AttributeName="RawMessageDelivery",
+        AttributeValue="true",
+    )
+    sns.set_subscription_attributes(
+        SubscriptionArn=arn,
+        AttributeName="FilterPolicyScope",
+        AttributeValue="MessageAttributes",
+    )
+    sns.set_subscription_attributes(
+        SubscriptionArn=arn,
+        AttributeName="FilterPolicy",
+        AttributeValue=json.dumps({"signal_type": allowed}),
+    )
