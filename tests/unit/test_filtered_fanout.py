@@ -96,3 +96,24 @@ def test_topic_policy_allows_publish_only_from_this_account():
             ],
         ]
     }
+
+
+def test_queue_policy_allows_send_only_from_this_topic():
+    stack, _, _, _ = _stack()
+    template = assertions.Template.from_stack(stack)
+    template.resource_count_is("AWS::SQS::QueuePolicy", 2)
+
+    topics = list(template.find_resources("AWS::SNS::Topic"))
+    assert len(topics) == 1
+    consumers, dead_letters = _queues(template)
+
+    for resource in template.find_resources("AWS::SQS::QueuePolicy").values():
+        props = resource["Properties"]
+        queue_id = props["Queues"][0]["Ref"]
+        assert queue_id in consumers
+        assert queue_id not in dead_letters
+        statement = props["PolicyDocument"]["Statement"][0]
+        assert statement["Effect"] == "Allow"
+        assert statement["Action"] == "sqs:SendMessage"
+        assert statement["Principal"] == {"Service": "sns.amazonaws.com"}
+        assert statement["Condition"]["ArnEquals"]["aws:SourceArn"] == {"Ref": topics[0]}
