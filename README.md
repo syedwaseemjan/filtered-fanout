@@ -122,3 +122,12 @@ A follow-on hop, such as opening a work ticket after a model run, is this same c
 ## v0.1
 
 This is the construct, the assertion tests, one LocalStack test, and this guide. `cdk synth` already gives SAM or Serverless users a template if they still write YAML. There is no second implementation, and no sample ingest app.
+
+## Tests
+
+Assertion tests synthesize a stack. They run without AWS, and they are the ones that run on every push:
+
+```
+pip install -e ".[dev]"
+pytest -m "not integration"
+```
