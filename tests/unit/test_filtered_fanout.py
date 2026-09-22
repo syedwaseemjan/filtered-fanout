@@ -137,3 +137,23 @@ def test_dead_letter_alarm_fires_when_any_message_is_visible():
         queue_id = props["Dimensions"][0]["Value"]["Fn::GetAtt"][0]
         assert props["Dimensions"][0]["Name"] == "QueueName"
         assert queue_id in dead_letters
+
+
+def test_body_filter_sets_message_body_scope():
+    app = cdk.App()
+    stack = cdk.Stack(app, "Test")
+    fanout = FilteredFanout(stack, "IngestComplete")
+    fanout.add_consumer(
+        "lost-production",
+        filter={"signal_types": ["Gas Today"]},
+        filter_scope=FilterScope.MESSAGE_BODY,
+    )
+    template = assertions.Template.from_stack(stack)
+    template.has_resource_properties(
+        "AWS::SNS::Subscription",
+        {
+            "FilterPolicy": {"signal_types": ["Gas Today"]},
+            "FilterPolicyScope": "MessageBody",
+            "RawMessageDelivery": True,
+        },
+    )
