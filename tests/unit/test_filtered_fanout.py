@@ -35,3 +35,39 @@ def _queues(template: assertions.Template):
         else:
             dead_letters[logical_id] = props
     return consumers, dead_letters
+
+
+def test_two_consumers_fan_out_to_their_own_queues():
+    stack, _, _, _ = _stack()
+    template = assertions.Template.from_stack(stack)
+
+    template.resource_count_is("AWS::SNS::Topic", 1)
+    template.resource_count_is("AWS::SNS::Subscription", 2)
+
+    consumers, dead_letters = _queues(template)
+    assert len(consumers) == 2
+    assert len(dead_letters) == 2
+
+    redrive_targets = []
+    for props in consumers.values():
+        redrive = props["RedrivePolicy"]
+        assert redrive["maxReceiveCount"] == 5
+        target = redrive["deadLetterTargetArn"]["Fn::GetAtt"][0]
+        assert target in dead_letters
+        redrive_targets.append(target)
+    assert len(set(redrive_targets)) == 2
+
+    subscribed = set()
+    filters = []
+    for resource in template.find_resources("AWS::SNS::Subscription").values():
+        props = resource["Properties"]
+        assert props["RawMessageDelivery"] is True
+        assert props.get("FilterPolicyScope", "MessageAttributes") == "MessageAttributes"
+        endpoint = props["Endpoint"]["Fn::GetAtt"][0]
+        assert endpoint in consumers
+        assert endpoint not in dead_letters
+        subscribed.add(endpoint)
+        filters.append(props["FilterPolicy"])
+    assert subscribed == set(consumers)
+    assert {"signal_type": ["Gas Today"]} in filters
+    assert {"signal_type": ["Tubing Pressure"]} in filters
