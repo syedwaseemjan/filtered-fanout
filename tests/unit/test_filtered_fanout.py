@@ -12,16 +12,16 @@ from filtered_fanout import FilterScope, FilteredFanout
 def _stack():
     app = cdk.App()
     stack = cdk.Stack(app, "Test")
-    fanout = FilteredFanout(stack, "IngestComplete")
-    lost = fanout.add_consumer(
-        "lost-production",
-        filter={"signal_type": ["Gas Today"]},
+    fanout = FilteredFanout(stack, "OrderPlaced")
+    email = fanout.add_consumer(
+        "email",
+        filter={"channel": ["email"]},
     )
-    setpoints = fanout.add_consumer(
-        "setpoints",
-        filter={"signal_type": ["Tubing Pressure"]},
+    sms = fanout.add_consumer(
+        "sms",
+        filter={"channel": ["sms"]},
     )
-    return stack, fanout, lost, setpoints
+    return stack, fanout, email, sms
 
 
 def _queues(template: assertions.Template):
@@ -69,8 +69,8 @@ def test_two_consumers_fan_out_to_their_own_queues():
         subscribed.add(endpoint)
         filters.append(props["FilterPolicy"])
     assert subscribed == set(consumers)
-    assert {"signal_type": ["Gas Today"]} in filters
-    assert {"signal_type": ["Tubing Pressure"]} in filters
+    assert {"channel": ["email"]} in filters
+    assert {"channel": ["sms"]} in filters
 
 
 def test_topic_policy_allows_publish_only_from_this_account():
@@ -142,17 +142,17 @@ def test_dead_letter_alarm_fires_when_any_message_is_visible():
 def test_body_filter_sets_message_body_scope():
     app = cdk.App()
     stack = cdk.Stack(app, "Test")
-    fanout = FilteredFanout(stack, "IngestComplete")
+    fanout = FilteredFanout(stack, "OrderPlaced")
     fanout.add_consumer(
-        "lost-production",
-        filter={"signal_types": ["Gas Today"]},
+        "email",
+        filter={"channel": ["email"]},
         filter_scope=FilterScope.MESSAGE_BODY,
     )
     template = assertions.Template.from_stack(stack)
     template.has_resource_properties(
         "AWS::SNS::Subscription",
         {
-            "FilterPolicy": {"signal_types": ["Gas Today"]},
+            "FilterPolicy": {"channel": ["email"]},
             "FilterPolicyScope": "MessageBody",
             "RawMessageDelivery": True,
         },
@@ -160,17 +160,17 @@ def test_body_filter_sets_message_body_scope():
 
 
 def test_worker_reports_batch_item_failures():
-    stack, _, lost, _ = _stack()
+    stack, _, email, _ = _stack()
     fn = lambda_.Function(
         stack,
-        "LostProduction",
+        "SendEmail",
         runtime=lambda_.Runtime.PYTHON_3_12,
         handler="index.handler",
         code=lambda_.Code.from_inline(
             "def handler(event, context):\n    return {'batchItemFailures': []}\n"
         ),
     )
-    lost.add_worker(fn)
+    email.add_worker(fn)
     template = assertions.Template.from_stack(stack)
 
     consumers, dead_letters = _queues(template)
@@ -187,11 +187,11 @@ def test_worker_reports_batch_item_failures():
 def test_max_receive_count_can_be_overridden_per_consumer():
     app = cdk.App()
     stack = cdk.Stack(app, "Test")
-    fanout = FilteredFanout(stack, "IngestComplete", max_receive_count=8)
-    fanout.add_consumer("shared-default", filter={"signal_type": ["Gas Today"]})
+    fanout = FilteredFanout(stack, "OrderPlaced", max_receive_count=8)
+    fanout.add_consumer("shared-default", filter={"channel": ["email"]})
     fanout.add_consumer(
         "sooner",
-        filter={"signal_type": ["Tubing Pressure"]},
+        filter={"channel": ["sms"]},
         max_receive_count=3,
     )
     template = assertions.Template.from_stack(stack)
@@ -206,15 +206,15 @@ def test_max_receive_count_can_be_overridden_per_consumer():
 def test_rejects_an_empty_or_shapeless_filter():
     app = cdk.App()
     stack = cdk.Stack(app, "Test")
-    fanout = FilteredFanout(stack, "IngestComplete")
+    fanout = FilteredFanout(stack, "OrderPlaced")
     with pytest.raises(ValueError):
         fanout.add_consumer("missing", filter={})
     with pytest.raises(ValueError):
-        fanout.add_consumer("bare", filter={"signal_type": "Gas Today"})
+        fanout.add_consumer("bare", filter={"channel": "email"})
 
 
 def test_worker_rejects_a_function_slower_than_the_visibility_timeout():
-    stack, _, lost, _ = _stack()
+    stack, _, email, _ = _stack()
     fn = lambda_.Function(
         stack,
         "Slow",
@@ -224,16 +224,16 @@ def test_worker_rejects_a_function_slower_than_the_visibility_timeout():
         code=lambda_.Code.from_inline("def handler(event, context): return {}"),
     )
     with pytest.raises(ValueError, match="visibility timeout"):
-        lost.add_worker(fn)
+        email.add_worker(fn)
 
 
 def test_visibility_timeout_is_set_on_the_consumer_queue():
     app = cdk.App()
     stack = cdk.Stack(app, "Test")
-    fanout = FilteredFanout(stack, "IngestComplete")
+    fanout = FilteredFanout(stack, "OrderPlaced")
     fanout.add_consumer(
-        "lost-production",
-        filter={"signal_type": ["Gas Today"]},
+        "email",
+        filter={"channel": ["email"]},
         visibility_timeout=Duration.seconds(120),
     )
     template = assertions.Template.from_stack(stack)

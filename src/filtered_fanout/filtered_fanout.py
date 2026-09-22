@@ -35,7 +35,7 @@ class FilterScope(Enum):
 class FilteredFanout(Construct):
     """One SNS topic, several filtered SQS consumers.
 
-    Ingest publishes once and does not know who is listening. Each consumer
+    The publisher publishes once and does not know who is listening. Each consumer
     is a queue subscribed to ``topic`` with its own filter and its own
     dead-letter queue, so a failing worker piles up on its own backlog.
 

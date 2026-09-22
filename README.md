@@ -1,15 +1,15 @@
 # FilteredFanout
 
-One completion event, several workers. Each worker should see only its own slice, and a failure in one should not stall the others. Ingest finishes writing, then publishes one message. It does not know who is listening. Each consumer is a queue subscribed to that topic, with a filter so it only receives the messages it can act on, and a dead-letter queue so its failures stay on its own backlog.
+One completion event, several workers. Each worker should see only its own slice, and a failure in one should not stall the others. An order is placed, then the app publishes one message. It does not know who is listening. Each consumer is a queue subscribed to that topic, with a filter so it only receives the messages it can act on, and a dead-letter queue so its failures stay on its own backlog.
 
 ```
-ingest
+app
   │
   │  publish once
   ▼
 SNS topic
-  ├─ filter: volume signals  → queue → worker → DLQ
-  ├─ filter: pressure        → queue → worker → DLQ
+  ├─ filter: email  → queue → worker → DLQ
+  ├─ filter: sms    → queue → worker → DLQ
   └─ filter: whatever is next → queue → worker → DLQ
 ```
 
@@ -26,25 +26,25 @@ from constructs import Construct
 from filtered_fanout import FilteredFanout
 
 
-class IngestStack(Stack):
+class OrdersStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        fanout = FilteredFanout(self, "IngestComplete")
-        lost = fanout.add_consumer(
-            "lost-production",
-            filter={"signal_type": ["Gas Today"]},
+        fanout = FilteredFanout(self, "OrderPlaced")
+        email = fanout.add_consumer(
+            "email",
+            filter={"channel": ["email"]},
         )
-        setpoints = fanout.add_consumer(
-            "setpoints",
-            filter={"signal_type": ["Tubing Pressure"]},
+        sms = fanout.add_consumer(
+            "sms",
+            filter={"channel": ["sms"]},
         )
-        lost.add_worker(lost_production_fn)  # optional
+        email.add_worker(send_email_fn)  # optional
 ```
 
-`lost.queue` is the queue. Attach a Lambda with `add_worker`, poll it from Fargate, or leave it unwired. `fanout.topic` is the topic ingest publishes to.
+`email.queue` is the queue. Attach a Lambda with `add_worker`, poll it from Fargate, or leave it unwired. `fanout.topic` is the topic the app publishes to.
 
-The filter matches if the published attribute intersects the list. A message carrying both `Gas Today` and `Tubing Pressure` is delivered to both queues. A message carrying neither is delivered to neither. SNS drops it. Nobody wakes up to discard it.
+The filter matches if the published attribute intersects the list. A message carrying both `email` and `sms` is delivered to both queues. A message carrying neither is delivered to neither. SNS drops it. Nobody wakes up to discard it.
 
 ## Publishing
 
@@ -54,20 +54,19 @@ Put the filter keys on message attributes, not only in the body. Attributes are 
 sns.publish(
     TopicArn=topic_arn,
     Message=json.dumps({
-        "operator": operator_name,
-        "well": well_name,
-        "latest_time": latest_time,
+        "order_id": order_id,
+        "customer": customer_name,
     }),
     MessageAttributes={
-        "signal_type": {
+        "channel": {
             "DataType": "String.Array",
-            "StringValue": json.dumps(["Gas Today", "Tubing Pressure"]),
+            "StringValue": json.dumps(["email", "sms"]),
         },
     },
 )
 ```
 
-`String.Array` values are a JSON array string. The filter `["Gas Today"]` matches when that value is one of the entries. Keys are ANDed together. Values in one list are ORed.
+`String.Array` values are a JSON array string. The filter `["email"]` matches when that value is one of the entries. Keys are ANDed together. Values in one list are ORed.
 
 ## What you get
 
@@ -107,21 +106,21 @@ Attributes are the default. Filtering on the body works when the subscription se
 from filtered_fanout import FilterScope
 
 fanout.add_consumer(
-    "lost-production",
-    filter={"signal_types": ["Gas Today"]},
+    "email",
+    filter={"channel": ["email"]},
     filter_scope=FilterScope.MESSAGE_BODY,
 )
 ```
 
 ## When to leave it alone
 
-A single consumer can be a queue with no topic. Work that must be strictly ordered per key wants a FIFO queue and a single consumer, not this fan-out. A workflow with waits, branches, and human steps wants Step Functions. Many event types, replay, or cross-account routing wants EventBridge. A nightly sweep can stay as a schedule for backfill. The event path replaces the "every well, every hour" run, and the schedule can remain for wells the event missed.
+A single consumer can be a queue with no topic. Work that must be strictly ordered per key wants a FIFO queue and a single consumer, not this fan-out. A workflow with waits, branches, and human steps wants Step Functions. Many event types, replay, or cross-account routing wants EventBridge. A nightly sweep can stay as a schedule for backfill. The event path replaces the hourly "check every order" run, and the schedule can remain for orders the event missed.
 
-A follow-on hop, such as opening a work ticket after a model run, is this same construct used again. The worker publishes to a second topic. The first publisher does not change.
+A follow-on hop, such as sending a receipt after the order ships, is this same construct used again. The worker publishes to a second topic. The first publisher does not change.
 
 ## v0.1
 
-This is the construct, the assertion tests, one LocalStack test, and this guide. `cdk synth` already gives SAM or Serverless users a template if they still write YAML. There is no second implementation, and no sample ingest app.
+This is the construct, the assertion tests, one LocalStack test, and this guide. `cdk synth` already gives SAM or Serverless users a template if they still write YAML. There is no second implementation, and no sample app.
 
 ## Tests
 
@@ -132,7 +131,7 @@ pip install -e ".[dev]"
 pytest -m "not integration"
 ```
 
-The integration test publishes volume only, pressure only, both, and a message that matches neither. The volume queue gets the first and third, the pressure queue gets the second and third, and the last is dropped. LocalStack is where that runs. Moto's SNS filter support is incomplete, especially for body scope, so a green moto run is not the proof.
+The integration test publishes email only, sms only, both, and a message that matches neither. The email queue gets the first and third, the sms queue gets the second and third, and the last is dropped. LocalStack is where that runs. Moto's SNS filter support is incomplete, especially for body scope, so a green moto run is not the proof.
 
 ```
 docker compose up -d

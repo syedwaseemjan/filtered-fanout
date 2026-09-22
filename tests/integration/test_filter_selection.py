@@ -17,8 +17,8 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-VOLUME = "Gas Today"
-PRESSURE = "Tubing Pressure"
+EMAIL = "email"
+SMS = "sms"
 
 
 @pytest.fixture(scope="module")
@@ -45,43 +45,43 @@ def localstack_url():
         container.stop()
 
 
-def test_filter_delivers_volume_pressure_and_both(localstack_url: str):
+def test_filter_delivers_email_sms_and_both(localstack_url: str):
     boto3 = pytest.importorskip("boto3")
     suffix = uuid.uuid4().hex[:8]
     sns = _client(boto3, "sns", localstack_url)
     sqs = _client(boto3, "sqs", localstack_url)
 
-    topic_arn = sns.create_topic(Name=f"ingest-{suffix}")["TopicArn"]
-    volume_url = sqs.create_queue(QueueName=f"volume-{suffix}")["QueueUrl"]
-    pressure_url = sqs.create_queue(QueueName=f"pressure-{suffix}")["QueueUrl"]
-    volume_arn = sqs.get_queue_attributes(
-        QueueUrl=volume_url, AttributeNames=["QueueArn"]
+    topic_arn = sns.create_topic(Name=f"orders-{suffix}")["TopicArn"]
+    email_url = sqs.create_queue(QueueName=f"email-{suffix}")["QueueUrl"]
+    sms_url = sqs.create_queue(QueueName=f"sms-{suffix}")["QueueUrl"]
+    email_arn = sqs.get_queue_attributes(
+        QueueUrl=email_url, AttributeNames=["QueueArn"]
     )["Attributes"]["QueueArn"]
-    pressure_arn = sqs.get_queue_attributes(
-        QueueUrl=pressure_url, AttributeNames=["QueueArn"]
+    sms_arn = sqs.get_queue_attributes(
+        QueueUrl=sms_url, AttributeNames=["QueueArn"]
     )["Attributes"]["QueueArn"]
 
     try:
-        _allow_topic(sqs, volume_url, volume_arn, topic_arn)
-        _allow_topic(sqs, pressure_url, pressure_arn, topic_arn)
-        _subscribe(sns, topic_arn, volume_arn, [VOLUME])
-        _subscribe(sns, topic_arn, pressure_arn, [PRESSURE])
+        _allow_topic(sqs, email_url, email_arn, topic_arn)
+        _allow_topic(sqs, sms_url, sms_arn, topic_arn)
+        _subscribe(sns, topic_arn, email_arn, [EMAIL])
+        _subscribe(sns, topic_arn, sms_arn, [SMS])
 
-        _publish(sns, topic_arn, "volume-only", [VOLUME])
-        _publish(sns, topic_arn, "pressure-only", [PRESSURE])
-        _publish(sns, topic_arn, "both", [VOLUME, PRESSURE])
-        _publish(sns, topic_arn, "neither", ["Casing Pressure"])
+        _publish(sns, topic_arn, "email-only", [EMAIL])
+        _publish(sns, topic_arn, "sms-only", [SMS])
+        _publish(sns, topic_arn, "both", [EMAIL, SMS])
+        _publish(sns, topic_arn, "neither", ["fax"])
 
         found = _collect(
             sqs,
-            {"volume": volume_url, "pressure": pressure_url},
+            {"email": email_url, "sms": sms_url},
         )
-        assert found["volume"] == {"volume-only", "both"}
-        assert found["pressure"] == {"pressure-only", "both"}
+        assert found["email"] == {"email-only", "both"}
+        assert found["sms"] == {"sms-only", "both"}
     finally:
         sns.delete_topic(TopicArn=topic_arn)
-        sqs.delete_queue(QueueUrl=volume_url)
-        sqs.delete_queue(QueueUrl=pressure_url)
+        sqs.delete_queue(QueueUrl=email_url)
+        sqs.delete_queue(QueueUrl=sms_url)
 
 
 def _client(boto3, service: str, endpoint: str):
@@ -138,18 +138,18 @@ def _subscribe(sns, topic_arn: str, queue_arn: str, allowed: list[str]) -> None:
     sns.set_subscription_attributes(
         SubscriptionArn=arn,
         AttributeName="FilterPolicy",
-        AttributeValue=json.dumps({"signal_type": allowed}),
+        AttributeValue=json.dumps({"channel": allowed}),
     )
 
 
-def _publish(sns, topic_arn: str, message_id: str, signal_types: list[str]) -> None:
+def _publish(sns, topic_arn: str, message_id: str, channels: list[str]) -> None:
     sns.publish(
         TopicArn=topic_arn,
         Message=json.dumps({"id": message_id}),
         MessageAttributes={
-            "signal_type": {
+            "channel": {
                 "DataType": "String.Array",
-                "StringValue": json.dumps(signal_types),
+                "StringValue": json.dumps(channels),
             }
         },
     )
@@ -159,8 +159,8 @@ def _collect(sqs, queues: dict[str, str], timeout: float = 30) -> dict[str, set[
     found = {name: set() for name in queues}
     deadline = time.monotonic() + timeout
     expected = {
-        "volume": {"volume-only", "both"},
-        "pressure": {"pressure-only", "both"},
+        "email": {"email-only", "both"},
+        "sms": {"sms-only", "both"},
     }
     while time.monotonic() < deadline:
         _drain_once(sqs, queues, found)
