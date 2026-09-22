@@ -190,3 +190,15 @@ class FanoutConsumer(Construct):
         The function returns ``{"batchItemFailures": [{"itemIdentifier": id}]}``.
         """
         if batch_size < 1:
+            raise ValueError("batch_size must be at least 1")
+        timeout = getattr(fn, "timeout", None)
+        if isinstance(timeout, Duration):
+            timeout_seconds = timeout.to_seconds()
+            visibility_seconds = self.visibility_timeout.to_seconds()
+            if timeout_seconds >= visibility_seconds:
+                raise ValueError(
+                    f"function timeout ({timeout_seconds}s) must be shorter than "
+                    f"the queue visibility timeout ({visibility_seconds}s). "
+                    "Pass a longer visibility_timeout to add_consumer, or the "
+                    "message becomes visible again while the worker is still running."
+                )
