@@ -18,3 +18,15 @@ from constructs import Construct
 # A message the worker keeps failing is dead-lettered after this many receives.
 DEFAULT_MAX_RECEIVE_COUNT = 5
 DLQ_RETENTION = Duration.days(14)
+
+
+class FilterScope(Enum):
+    """Where SNS evaluates the subscription filter.
+
+    Message attributes are the stable contract: the body can grow without
+    changing who receives the message. Message body matches a filter against
+    top-level JSON fields, and it breaks when that shape shifts.
+    """
+
+    MESSAGE_ATTRIBUTES = "MessageAttributes"
+    MESSAGE_BODY = "MessageBody"
