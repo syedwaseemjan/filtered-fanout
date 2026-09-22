@@ -188,3 +188,18 @@ def _drain_once(sqs, queues: dict[str, str], found: dict[str, set[str]]) -> None
                 QueueUrl=url,
                 ReceiptHandle=message["ReceiptHandle"],
             )
+
+
+def _wait_until_ready(endpoint: str) -> None:
+    deadline = time.monotonic() + 90
+    health = endpoint + "/_localstack/health"
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(health, timeout=2) as response:
+                if response.status == 200:
+                    return
+        except (urllib.error.URLError, TimeoutError) as exc:
+            last_error = exc
+        time.sleep(1)
+    raise RuntimeError(f"LocalStack did not become ready at {endpoint}") from last_error
