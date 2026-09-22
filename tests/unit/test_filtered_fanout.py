@@ -117,3 +117,23 @@ def test_queue_policy_allows_send_only_from_this_topic():
         assert statement["Action"] == "sqs:SendMessage"
         assert statement["Principal"] == {"Service": "sns.amazonaws.com"}
         assert statement["Condition"]["ArnEquals"]["aws:SourceArn"] == {"Ref": topics[0]}
+
+
+def test_dead_letter_alarm_fires_when_any_message_is_visible():
+    stack, _, _, _ = _stack()
+    template = assertions.Template.from_stack(stack)
+    template.resource_count_is("AWS::CloudWatch::Alarm", 2)
+    _, dead_letters = _queues(template)
+
+    for resource in template.find_resources("AWS::CloudWatch::Alarm").values():
+        props = resource["Properties"]
+        assert props["ComparisonOperator"] == "GreaterThanThreshold"
+        assert props["Threshold"] == 0
+        assert props["EvaluationPeriods"] == 1
+        assert props["Statistic"] == "Maximum"
+        assert props["Namespace"] == "AWS/SQS"
+        assert props["MetricName"] == "ApproximateNumberOfMessagesVisible"
+        assert props["TreatMissingData"] == "notBreaching"
+        queue_id = props["Dimensions"][0]["Value"]["Fn::GetAtt"][0]
+        assert props["Dimensions"][0]["Name"] == "QueueName"
+        assert queue_id in dead_letters
