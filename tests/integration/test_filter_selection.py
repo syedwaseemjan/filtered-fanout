@@ -92,3 +92,27 @@ def _client(boto3, service: str, endpoint: str):
         aws_access_key_id="test",
         aws_secret_access_key="test",
     )
+
+
+def _allow_topic(sqs, queue_url: str, queue_arn: str, topic_arn: str) -> None:
+    sqs.set_queue_attributes(
+        QueueUrl=queue_url,
+        Attributes={
+            "Policy": json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {"Service": "sns.amazonaws.com"},
+                            "Action": "sqs:SendMessage",
+                            "Resource": queue_arn,
+                            "Condition": {
+                                "ArnEquals": {"aws:SourceArn": topic_arn}
+                            },
+                        }
+                    ],
+                }
+            )
+        },
+    )
