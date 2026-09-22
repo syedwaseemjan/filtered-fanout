@@ -17,6 +17,18 @@ SNS is only the fan-out. It does not hold a backlog. SQS is where a slow or fail
 
 A new consumer is another `add_consumer` call. The publisher stays the same.
 
+## How to use this repo
+
+This repository is a library. Install it into the Python CDK app that already owns the stack. Python 3.11 or newer:
+
+```
+pip install "filtered-fanout @ git+https://github.com/syedwaseemjan/filtered-fanout.git"
+```
+
+Add `FilteredFanout` to that stack, as in the next section, and run `cdk deploy`. The topic, the queues, the filters, and the dead-letter alarms are created with the rest of the stack.
+
+The app that places the order publishes to `fanout.topic.topic_arn`. A worker is `add_worker` on a Lambda, a poller reading `email.queue`, or nothing until you are ready. Clone this repo only when you are changing the construct. The tests section is for that.
+
 ## Usage
 
 ```python
