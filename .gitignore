@@ -10,3 +10,7 @@ venv/
 
 # CDK
 cdk.out/
+
+# Builds
+dist/
+build/
