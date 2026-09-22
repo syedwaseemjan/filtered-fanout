@@ -85,3 +85,16 @@ For each consumer:
 The alarm has no action until you add one. `consumer.alarm.add_alarm_action(...)` is the hook. Pass `visibility_timeout` to `add_consumer` when the worker runs longer than the 30 second SQS default, or the message becomes visible again while that worker is still running.
 
 The dead-letter queue here is the SQS redrive queue (the worker received the message and failed until `maxReceiveCount`); an SNS subscription dead-letter queue, which CDK can also set, is the other path, for when SNS could not hand the message to the queue at all, and this construct does not add one.
+
+`add_worker` attaches a Lambda event source with `ReportBatchItemFailures`. Return the failed message ids and the rest of the batch is not retried:
+
+```python
+def handler(event, context):
+    failures = []
+    for record in event["Records"]:
+        try:
+            handle(json.loads(record["body"]))
+        except Exception:
+            failures.append({"itemIdentifier": record["messageId"]})
+    return {"batchItemFailures": failures}
+```
