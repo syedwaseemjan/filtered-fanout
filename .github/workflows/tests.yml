@@ -16,3 +16,19 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Assertion tests
         run: pytest -m "not integration"
+
+  filter-selection:
+    runs-on: ubuntu-latest
+    services:
+      localstack:
+        image: localstack/localstack:4
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: sns,sqs
+        options: >-
+          --health-cmd "curl -fsS http://localhost:4566/_localstack/health || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 10s
