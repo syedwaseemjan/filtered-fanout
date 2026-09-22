@@ -112,3 +112,9 @@ fanout.add_consumer(
     filter_scope=FilterScope.MESSAGE_BODY,
 )
 ```
+
+## When to leave it alone
+
+A single consumer can be a queue with no topic. Work that must be strictly ordered per key wants a FIFO queue and a single consumer, not this fan-out. A workflow with waits, branches, and human steps wants Step Functions. Many event types, replay, or cross-account routing wants EventBridge. A nightly sweep can stay as a schedule for backfill. The event path replaces the "every well, every hour" run, and the schedule can remain for wells the event missed.
+
+A follow-on hop, such as opening a work ticket after a model run, is this same construct used again. The worker publishes to a second topic. The first publisher does not change.
