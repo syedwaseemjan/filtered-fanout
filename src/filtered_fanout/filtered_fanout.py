@@ -202,3 +202,10 @@ class FanoutConsumer(Construct):
                     "Pass a longer visibility_timeout to add_consumer, or the "
                     "message becomes visible again while the worker is still running."
                 )
+        fn.add_event_source(
+            lambda_event_sources.SqsEventSource(
+                self.queue,
+                batch_size=batch_size,
+                report_batch_item_failures=True,
+            )
+        )
