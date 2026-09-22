@@ -7,3 +7,18 @@ from aws_cdk import assertions
 from aws_cdk import aws_lambda as lambda_
 
 from filtered_fanout import FilterScope, FilteredFanout
+
+
+def _stack():
+    app = cdk.App()
+    stack = cdk.Stack(app, "Test")
+    fanout = FilteredFanout(stack, "IngestComplete")
+    lost = fanout.add_consumer(
+        "lost-production",
+        filter={"signal_type": ["Gas Today"]},
+    )
+    setpoints = fanout.add_consumer(
+        "setpoints",
+        filter={"signal_type": ["Tubing Pressure"]},
+    )
+    return stack, fanout, lost, setpoints
