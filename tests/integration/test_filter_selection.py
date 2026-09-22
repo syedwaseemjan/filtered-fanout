@@ -43,3 +43,42 @@ def localstack_url():
         yield endpoint
     finally:
         container.stop()
+
+
+def test_filter_delivers_volume_pressure_and_both(localstack_url: str):
+    boto3 = pytest.importorskip("boto3")
+    suffix = uuid.uuid4().hex[:8]
+    sns = _client(boto3, "sns", localstack_url)
+    sqs = _client(boto3, "sqs", localstack_url)
+
+    topic_arn = sns.create_topic(Name=f"ingest-{suffix}")["TopicArn"]
+    volume_url = sqs.create_queue(QueueName=f"volume-{suffix}")["QueueUrl"]
+    pressure_url = sqs.create_queue(QueueName=f"pressure-{suffix}")["QueueUrl"]
+    volume_arn = sqs.get_queue_attributes(
+        QueueUrl=volume_url, AttributeNames=["QueueArn"]
+    )["Attributes"]["QueueArn"]
+    pressure_arn = sqs.get_queue_attributes(
+        QueueUrl=pressure_url, AttributeNames=["QueueArn"]
+    )["Attributes"]["QueueArn"]
+
+    try:
+        _allow_topic(sqs, volume_url, volume_arn, topic_arn)
+        _allow_topic(sqs, pressure_url, pressure_arn, topic_arn)
+        _subscribe(sns, topic_arn, volume_arn, [VOLUME])
+        _subscribe(sns, topic_arn, pressure_arn, [PRESSURE])
+
+        _publish(sns, topic_arn, "volume-only", [VOLUME])
+        _publish(sns, topic_arn, "pressure-only", [PRESSURE])
+        _publish(sns, topic_arn, "both", [VOLUME, PRESSURE])
+        _publish(sns, topic_arn, "neither", ["Casing Pressure"])
+
+        found = _collect(
+            sqs,
+            {"volume": volume_url, "pressure": pressure_url},
+        )
+        assert found["volume"] == {"volume-only", "both"}
+        assert found["pressure"] == {"pressure-only", "both"}
+    finally:
+        sns.delete_topic(TopicArn=topic_arn)
+        sqs.delete_queue(QueueUrl=volume_url)
+        sqs.delete_queue(QueueUrl=pressure_url)
