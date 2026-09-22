@@ -209,3 +209,13 @@ class FanoutConsumer(Construct):
                 report_batch_item_failures=True,
             )
         )
+
+
+def _attribute_filter(
+    filter: Mapping[str, Sequence[str]],
+) -> dict[str, sns.SubscriptionFilter]:
+    return {
+        key: sns.SubscriptionFilter.string_filter(allowlist=list(values))
+        for key, values in filter.items()
+    }
+
