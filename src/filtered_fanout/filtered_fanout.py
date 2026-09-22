@@ -177,3 +177,16 @@ class FanoutConsumer(Construct):
                 "received and failed until the redrive limit."
             ),
         )
+
+    def add_worker(
+        self,
+        fn: lambda_.IFunction,
+        *,
+        batch_size: int = 10,
+    ) -> None:
+        """Poll ``queue`` with Lambda, reporting partial batch failures.
+
+        One bad message is retried on its own. The rest of the batch is not.
+        The function returns ``{"batchItemFailures": [{"itemIdentifier": id}]}``.
+        """
+        if batch_size < 1:
