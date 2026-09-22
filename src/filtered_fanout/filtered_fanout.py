@@ -88,3 +88,27 @@ class FilteredFanout(Construct):
         above the worker's runtime so a message is not delivered again while
         that worker is still running.
         """
+        receive_count = (
+            self.max_receive_count if max_receive_count is None else max_receive_count
+        )
+        _validate_filter(filter)
+        _validate_receive_count(receive_count)
+        if visibility_timeout is not None and not isinstance(visibility_timeout, Duration):
+            raise TypeError("visibility_timeout must be a Duration")
+        if not isinstance(filter_scope, FilterScope):
+            raise TypeError(
+                "filter_scope must be FilterScope.MESSAGE_ATTRIBUTES "
+                "or FilterScope.MESSAGE_BODY"
+            )
+
+        consumer = FanoutConsumer(
+            self,
+            id,
+            topic=self.topic,
+            filter=filter,
+            filter_scope=filter_scope,
+            max_receive_count=receive_count,
+            visibility_timeout=visibility_timeout,
+        )
+        self.consumers.append(consumer)
+        return consumer
