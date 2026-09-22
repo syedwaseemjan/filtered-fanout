@@ -66,3 +66,5 @@ sns.publish(
     },
 )
 ```
+
+`String.Array` values are a JSON array string. The filter `["Gas Today"]` matches when that value is one of the entries. Keys are ANDed together. Values in one list are ORed.
