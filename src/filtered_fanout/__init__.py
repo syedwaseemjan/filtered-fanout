@@ -6,3 +6,10 @@ from filtered_fanout.filtered_fanout import (
     FilterScope,
     FilteredFanout,
 )
+
+__all__ = [
+    "DEFAULT_MAX_RECEIVE_COUNT",
+    "FanoutConsumer",
+    "FilterScope",
+    "FilteredFanout",
+]
