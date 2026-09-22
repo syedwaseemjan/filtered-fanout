@@ -236,3 +236,22 @@ def _validate_receive_count(max_receive_count: int) -> None:
         raise TypeError("max_receive_count must be an integer")
     if max_receive_count < 1:
         raise ValueError("max_receive_count must be at least 1")
+
+
+def _validate_filter(filter: Mapping[str, Sequence[str]]) -> None:
+    if not isinstance(filter, Mapping) or len(filter) == 0:
+        raise ValueError("filter must contain at least one key")
+    for key, values in filter.items():
+        if not isinstance(key, str) or not key:
+            raise ValueError("filter keys must be non-empty strings")
+        if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
+            raise ValueError(
+                f"filter for {key!r} must be a list of strings, not a bare string"
+            )
+        if len(values) == 0:
+            raise ValueError(f"filter for {key!r} must list at least one value")
+        for value in values:
+            if not isinstance(value, str) or not value:
+                raise ValueError(
+                    f"filter values for {key!r} must be non-empty strings"
+                )
