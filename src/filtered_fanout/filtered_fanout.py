@@ -30,3 +30,17 @@ class FilterScope(Enum):
 
     MESSAGE_ATTRIBUTES = "MessageAttributes"
     MESSAGE_BODY = "MessageBody"
+
+
+class FilteredFanout(Construct):
+    """One SNS topic, several filtered SQS consumers.
+
+    Ingest publishes once and does not know who is listening. Each consumer
+    is a queue subscribed to ``topic`` with its own filter and its own
+    dead-letter queue, so a failing worker piles up on its own backlog.
+
+    The dead-letter queue is the SQS redrive queue: the worker received the
+    message and failed until ``maxReceiveCount``. This construct does not
+    set an SNS subscription dead-letter queue, which is the other path
+    (SNS could not deliver to the queue at all).
+    """
