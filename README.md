@@ -45,3 +45,24 @@ class IngestStack(Stack):
 `lost.queue` is the queue. Attach a Lambda with `add_worker`, poll it from Fargate, or leave it unwired. `fanout.topic` is the topic ingest publishes to.
 
 The filter matches if the published attribute intersects the list. A message carrying both `Gas Today` and `Tubing Pressure` is delivered to both queues. A message carrying neither is delivered to neither. SNS drops it. Nobody wakes up to discard it.
+
+## Publishing
+
+Put the filter keys on message attributes, not only in the body. Attributes are the stable contract. The body can grow without changing who receives the message.
+
+```python
+sns.publish(
+    TopicArn=topic_arn,
+    Message=json.dumps({
+        "operator": operator_name,
+        "well": well_name,
+        "latest_time": latest_time,
+    }),
+    MessageAttributes={
+        "signal_type": {
+            "DataType": "String.Array",
+            "StringValue": json.dumps(["Gas Today", "Tubing Pressure"]),
+        },
+    },
+)
+```
