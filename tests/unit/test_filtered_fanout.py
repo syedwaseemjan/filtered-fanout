@@ -238,3 +238,11 @@ def test_visibility_timeout_is_set_on_the_consumer_queue():
     )
     template = assertions.Template.from_stack(stack)
     template.has_resource_properties("AWS::SQS::Queue", {"VisibilityTimeout": 120})
+
+
+def test_dead_letter_queues_are_retained_for_fourteen_days():
+    stack, _, _, _ = _stack()
+    template = assertions.Template.from_stack(stack)
+    _, dead_letters = _queues(template)
+    for props in dead_letters.values():
+        assert props["MessageRetentionPeriod"] == 14 * 24 * 60 * 60
