@@ -131,3 +131,13 @@ Assertion tests synthesize a stack. They run without AWS, and they are the ones 
 pip install -e ".[dev]"
 pytest -m "not integration"
 ```
+
+The integration test publishes volume only, pressure only, both, and a message that matches neither. The volume queue gets the first and third, the pressure queue gets the second and third, and the last is dropped. LocalStack is where that runs. Moto's SNS filter support is incomplete, especially for body scope, so a green moto run is not the proof.
+
+```
+docker compose up -d
+pip install -e ".[dev,integration]"
+LOCALSTACK_URL=http://localhost:4566 pytest -m integration
+```
+
+With the integration extra installed and `LOCALSTACK_URL` unset, the test starts LocalStack itself.
