@@ -3,3 +3,5 @@ services:
     image: localstack/localstack:4
     ports:
       - "4566:4566"
+    environment:
+      SERVICES: sns,sqs
