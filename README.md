@@ -41,3 +41,7 @@ class IngestStack(Stack):
         )
         lost.add_worker(lost_production_fn)  # optional
 ```
+
+`lost.queue` is the queue. Attach a Lambda with `add_worker`, poll it from Fargate, or leave it unwired. `fanout.topic` is the topic ingest publishes to.
+
+The filter matches if the published attribute intersects the list. A message carrying both `Gas Today` and `Tubing Pressure` is delivered to both queues. A message carrying neither is delivered to neither. SNS drops it. Nobody wakes up to discard it.
