@@ -161,3 +161,19 @@ class FanoutConsumer(Construct):
         self.subscription = topic.add_subscription(
             subscriptions.SqsSubscription(self.queue, **subscription_kwargs)
         )
+        self.alarm = cloudwatch.Alarm(
+            self,
+            "DeadLetterAlarm",
+            metric=self.dead_letter_queue.metric_approximate_number_of_messages_visible(
+                statistic=cloudwatch.Stats.MAXIMUM,
+                period=Duration.minutes(1),
+            ),
+            threshold=0,
+            comparison_operator=cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+            evaluation_periods=1,
+            treat_missing_data=cloudwatch.TreatMissingData.NOT_BREACHING,
+            alarm_description=(
+                "This consumer's dead-letter queue has messages the worker "
+                "received and failed until the redrive limit."
+            ),
+        )
