@@ -153,3 +153,20 @@ def _publish(sns, topic_arn: str, message_id: str, signal_types: list[str]) -> N
             }
         },
     )
+
+
+def _collect(sqs, queues: dict[str, str], timeout: float = 30) -> dict[str, set[str]]:
+    found = {name: set() for name in queues}
+    deadline = time.monotonic() + timeout
+    expected = {
+        "volume": {"volume-only", "both"},
+        "pressure": {"pressure-only", "both"},
+    }
+    while time.monotonic() < deadline:
+        _drain_once(sqs, queues, found)
+        if found == expected:
+            # One more beat, so a message that should have been dropped can still show up.
+            time.sleep(1)
+            _drain_once(sqs, queues, found)
+            break
+    return found
