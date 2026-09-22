@@ -1,3 +1,5 @@
 services:
   localstack:
     image: localstack/localstack:4
+    ports:
+      - "4566:4566"
