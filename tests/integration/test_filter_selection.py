@@ -140,3 +140,16 @@ def _subscribe(sns, topic_arn: str, queue_arn: str, allowed: list[str]) -> None:
         AttributeName="FilterPolicy",
         AttributeValue=json.dumps({"signal_type": allowed}),
     )
+
+
+def _publish(sns, topic_arn: str, message_id: str, signal_types: list[str]) -> None:
+    sns.publish(
+        TopicArn=topic_arn,
+        Message=json.dumps({"id": message_id}),
+        MessageAttributes={
+            "signal_type": {
+                "DataType": "String.Array",
+                "StringValue": json.dumps(signal_types),
+            }
+        },
+    )
