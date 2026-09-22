@@ -82,3 +82,13 @@ def test_filter_delivers_volume_pressure_and_both(localstack_url: str):
         sns.delete_topic(TopicArn=topic_arn)
         sqs.delete_queue(QueueUrl=volume_url)
         sqs.delete_queue(QueueUrl=pressure_url)
+
+
+def _client(boto3, service: str, endpoint: str):
+    return boto3.client(
+        service,
+        endpoint_url=endpoint,
+        region_name="us-east-1",
+        aws_access_key_id="test",
+        aws_secret_access_key="test",
+    )
