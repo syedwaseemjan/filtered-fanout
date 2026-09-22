@@ -182,3 +182,22 @@ def test_worker_reports_batch_item_failures():
     source = props["EventSourceArn"]["Fn::GetAtt"][0]
     assert source in consumers
     assert source not in dead_letters
+
+
+def test_max_receive_count_can_be_overridden_per_consumer():
+    app = cdk.App()
+    stack = cdk.Stack(app, "Test")
+    fanout = FilteredFanout(stack, "IngestComplete", max_receive_count=8)
+    fanout.add_consumer("shared-default", filter={"signal_type": ["Gas Today"]})
+    fanout.add_consumer(
+        "sooner",
+        filter={"signal_type": ["Tubing Pressure"]},
+        max_receive_count=3,
+    )
+    template = assertions.Template.from_stack(stack)
+    counts = sorted(
+        resource["Properties"]["RedrivePolicy"]["maxReceiveCount"]
+        for resource in template.find_resources("AWS::SQS::Queue").values()
+        if "RedrivePolicy" in resource.get("Properties", {})
+    )
+    assert counts == [3, 8]
