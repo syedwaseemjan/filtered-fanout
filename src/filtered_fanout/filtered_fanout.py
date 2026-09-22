@@ -44,3 +44,15 @@ class FilteredFanout(Construct):
     set an SNS subscription dead-letter queue, which is the other path
     (SNS could not deliver to the queue at all).
     """
+
+    def __init__(
+        self,
+        scope: Construct,
+        id: str,
+        *,
+        max_receive_count: int = DEFAULT_MAX_RECEIVE_COUNT,
+    ) -> None:
+        super().__init__(scope, id)
+        _validate_receive_count(max_receive_count)
+        self.max_receive_count = max_receive_count
+
