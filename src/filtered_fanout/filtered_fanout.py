@@ -152,3 +152,12 @@ class FanoutConsumer(Construct):
             ),
             **queue_kwargs,
         )
+        # SqsSubscription grants sqs:SendMessage to this topic only.
+        subscription_kwargs: dict = {"raw_message_delivery": True}
+        if filter_scope == FilterScope.MESSAGE_ATTRIBUTES:
+            subscription_kwargs["filter_policy"] = _attribute_filter(filter)
+        else:
+            subscription_kwargs["filter_policy_with_message_body"] = _body_filter(filter)
+        self.subscription = topic.add_subscription(
+            subscriptions.SqsSubscription(self.queue, **subscription_kwargs)
+        )
