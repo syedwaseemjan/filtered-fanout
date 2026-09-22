@@ -68,3 +68,16 @@ sns.publish(
 ```
 
 `String.Array` values are a JSON array string. The filter `["Gas Today"]` matches when that value is one of the entries. Keys are ANDed together. Values in one list are ORed.
+
+## What you get
+
+One standard SNS topic, and a topic policy that grants `sns:Publish` to this account and to no other principal.
+
+For each consumer:
+
+- a standard SQS queue
+- its own dead-letter queue, `maxReceiveCount` 5, retained for 14 days
+- an SNS subscription whose filter is the map you passed
+- raw message delivery, so the worker sees your JSON and not the SNS envelope
+- the queue policy CDK adds, which allows `sqs:SendMessage` only from this topic
+- an alarm when that dead-letter queue has any visible messages
